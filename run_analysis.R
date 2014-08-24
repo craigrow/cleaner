@@ -10,22 +10,48 @@ x_train <- read.table("./dataset/train/x_train.txt")
 y_test <- read.table("./dataset/test/y_test.txt")
 y_train <- read.table("./dataset/train/y_train.txt")
 
+## Read in the files which identify the subjects
+s_test <- read.table("./dataset/test/subject_test.txt")
+s_train <- read.table("./dataset/train/subject_train.txt")
 
-## Combine the data frames into one via rbind.
-test_complete <- data.frame(cbind(y_test, x_test))
-train_complete <- data.frame(cbind(y_train, x_train))
-output <- data.frame(rbind(test_complete, train_complete))
+## Replace activity IDs with descriptive names
+a_test <- as.character(y_test$V1)
 
-## Put column names on the data.
+a_test <- gsub("1", "walking", a_test)
+a_test <- gsub("2", "walkingupstairs", a_test)
+a_test <- gsub("3", "walkingdownstairs", a_test)
+a_test <- gsub("4", "sitting", a_test)
+a_test <- gsub("5", "standing", a_test)
+a_test <- gsub("6", "laying", a_test)
+
+a_train <- as.character(y_train$V1)
+
+a_train <- gsub("1", "walking", a_train)
+a_train <- gsub("2", "walkingupstairs", a_train)
+a_train <- gsub("3", "walkingdownstairs", a_train)
+a_train <- gsub("4", "sitting", a_train)
+a_train <- gsub("5", "standing", a_train)
+a_train <- gsub("6", "laying", a_train)
+
+## Combine the data frames into one via rbind
+test_complete <- data.frame(cbind(s_test, a_test, x_test))
+train_complete <- data.frame(cbind(s_train, a_train, x_train))
+
+## Put the column names on the data
 require(stringr)
-old_cols <- names(output)
-new_cols <- c("Subject", as.character(feat_list))
-names(output) <- str_replace(string=names(output), pattern = old_cols, replacement = new_cols)
+old_cols_train <- names(train_complete)
+old_cols_test <- names(test_complete)
+new_cols <- c("subject", "activity", as.character(feat_list))
+names(train_complete) <- str_replace(string = names(train_complete), pattern = old_cols_train, replacement = new_cols)
+names(test_complete) <- str_replace(string = names(test_complete), pattern = old_cols_test, replacement = new_cols)
+
+## Put the two data frames together
+output <- data.frame(rbind(test_complete, train_complete))
 
 ## Identify the columns we want.
 names <- names(output)
 onames <- grep("[Mm]ean()|[Ss][Tt][Dd]", names)
-onames <- c(1, onames)
+onames <- c(1, 2, onames)
 
 ## Short_output is the data frame with only the columns we want.
 short_output <- output[,c(onames)]
