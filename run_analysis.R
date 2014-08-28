@@ -1,75 +1,90 @@
-## Read in the feature.txt file which I'll use later for column headings.
-features <- read.table("./dataset/features.txt")
-feat_list <- features[,2]
-
 ## Read in the two data files.
-x_test <- read.table("./dataset/test/x_test.txt")
-x_train <- read.table("./dataset/train/x_train.txt")
+test <- read.table("./dataset/test/x_test.txt")
+train <- read.table("./dataset/train/x_train.txt")
 
 ## Read in the files which identify the activities
-y_test <- read.table("./dataset/test/y_test.txt")
-y_train <- read.table("./dataset/train/y_train.txt")
+a_test <- read.table("./dataset/test/y_test.txt")
+a_train <- read.table("./dataset/train/y_train.txt")
 
 ## Read in the files which identify the subjects
 s_test <- read.table("./dataset/test/subject_test.txt")
 s_train <- read.table("./dataset/train/subject_train.txt")
 
-## Replace activity IDs with descriptive names
-a_test <- as.character(y_test$V1)
+## Clip together the data
+c_test <- data.frame(cbind(s_test, a_test, test))
+c_train <- data.frame(cbind(s_train, a_train, train))
+data <- data.frame(rbind(c_test, c_train))
 
-a_test <- gsub("1", "walking", a_test)
-a_test <- gsub("2", "walkingupstairs", a_test)
-a_test <- gsub("3", "walkingdownstairs", a_test)
-a_test <- gsub("4", "sitting", a_test)
-a_test <- gsub("5", "standing", a_test)
-a_test <- gsub("6", "laying", a_test)
-
-a_train <- as.character(y_train$V1)
-
-a_train <- gsub("1", "walking", a_train)
-a_train <- gsub("2", "walkingupstairs", a_train)
-a_train <- gsub("3", "walkingdownstairs", a_train)
-a_train <- gsub("4", "sitting", a_train)
-a_train <- gsub("5", "standing", a_train)
-a_train <- gsub("6", "laying", a_train)
-
-## Combine the data frames into one via rbind
-test_complete <- data.frame(cbind(s_test, a_test, x_test))
-train_complete <- data.frame(cbind(s_train, a_train, x_train))
+## Read in the feature.txt file which we'll use for column headings.
+features <- read.table("./dataset/features.txt")
+feat_list <- features[,2]
 
 ## Put the column names on the data
 require(stringr)
-old_cols_train <- names(train_complete)
-old_cols_test <- names(test_complete)
+old_cols <- names(data)
 new_cols <- c("subject", "activity", as.character(feat_list))
-names(train_complete) <- str_replace(string = names(train_complete), pattern = old_cols_train, replacement = new_cols)
-names(test_complete) <- str_replace(string = names(test_complete), pattern = old_cols_test, replacement = new_cols)
-
-## Put the two data frames together
-output <- data.frame(rbind(test_complete, train_complete))
+names(data) <- str_replace(string = names(data), pattern = old_cols, replacement = new_cols)
 
 ## Identify the columns we want.
-names <- names(output)
-onames <- grep("[Mm]ean()|[Ss][Tt][Dd]", names)
-onames <- c(1, 2, onames)
+names <- names(data)
+names <- grep("[Mm]ean()|[Ss][Tt][Dd]", names)
+names <- c(1, 2, names)
 
-## Short_output is the data frame with only the columns we want.
-short_output <- output[,c(onames)]
+## Trim the data frame to only the columns we want.
+data <- data[,c(names)]
 
-## Create a data frame for each subject.
+## Clean up column names. TODO: remove other special chars.
+names(data) <- tolower(names(data))
+names(data) <- gsub("\\.", "", names(data))
+names(data) <- gsub("\\-", "", names(data))
+names(data) <- gsub("\\(", "", names(data))
+names(data) <- gsub("\\)", "", names(data))
 
-## Calculate the mean of each variable in each dataframe.
+## Setup an empty data frame for the data we'll output
+out <- data.frame()
 
-## Create a dataset that has the average of each variable for each activity for each subject
+## Setup a while loop to process each subject
+while (nrow(data) != 0) {
+  ## Find the first subject
+  sub <- data[1,1]
+  
+  ## Subset to the first subject
+  s_data <- subset(data, data[,1] == sub)
+  
+  ## Setup a while loop to process each activity
+  while (nrow(s_data) != 0) {
+    ## Find the first activity
+    act <- s_data[1,2]
+    a_data <- subset(s_data, s_data[,2] == act)
+    
+    ## Find the means of each column
+    means <- apply(a_data, 2, mean)
+    
+    ## Add the data to the output frame
+    out <- rbind(out, means)
+    
+    ## Remove the processed data from the s_data
+    s_data <- subset(s_data, s_data[,2] != act)
+  }
+  
+  ## Remove the processed data from the "data" data frame
+  data <- subset(data, data[,1] != sub)
+}
 
-## Putting this together...
-## In x_train we have 7,352 observations.
-## Each obs. has 561 measurements.
-## The measurements are defined in features.txt which defined 561 vars.
-## The subject_train has 7,352.
-## So, if you cbind that with x_train you can see which subject each obs is from.
-## Not sure we care which subject it's from though.
+## Fix the column names
+old_cols <- names(out)
+new_cols <- names(data)
+names(out) <- str_replace(string = names(out), pattern = old_cols, replacement = new_cols)
 
-## So for steps #1 and #2, merge x_train and x_test into one data frame.
-## Then extract the vars which have 'mean' or 'std' in their names to a new data frame.
-## Label the columns in the data frame appropriately.
+## Replace activity IDs with descriptive names
+rows <- nrow(out)
+row <- 1
+while (row < rows) {
+  if (out[row,2] == 1) {out[row,2] <- "walking"}
+  if (out[row,2] == 2) {out[row,2] <- "walkingupstairs"}
+  if (out[row,2] == 3) {out[row,2] <- "walkingdownstairs"}
+  if (out[row,2] == 4) {out[row,2] <- "sitting"}
+  if (out[row,2] == 5) {out[row,2] <- "standing"}
+  if (out[row,2] == 6) {out[row,2] <- "laying"}
+  row <- row + 1
+}
